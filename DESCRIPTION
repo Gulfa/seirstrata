@@ -1,0 +1,34 @@
+Package: seirstrata
+Title: Age- and Region-Stratified SEIR Transmission Model with Immunity Strata
+Version: 0.0.1
+Authors@R: person("Gunnar", "Rø", email = "gunnarroe@gmail.com", role = c("aut", "cre"))
+Description: Deterministic (ODE) and stochastic (tau-leaping) SEIR transmission
+    models with hospitalisation and deaths, stratified by age group, region and
+    level of immunity. Models are written in odin2 and run with dust2; the
+    built-in observation model gives a likelihood for fitting with monty.
+    Derived from the 'seirvax' preparedness-exercise package.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    data.table,
+    dust2,
+    ggplot2,
+    grDevices,
+    scales,
+    monty,
+    stats,
+    utils
+LinkingTo:
+    cpp11,
+    dust2,
+    monty
+Suggests:
+    odin2,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Additional_repositories: https://mrc-ide.r-universe.dev
+Remotes:
+    mrc-ide/dust2,
+    mrc-ide/monty

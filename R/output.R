@@ -16,6 +16,8 @@ output_dims <- c("age", "region", "stratum")
 #' * Daily incidence during day `(t - 1, t]`: `inc_infections`, `inc_hosp`
 #'   (admissions), `inc_deaths_hosp`, `inc_deaths_comm`, `inc_deaths`,
 #'   `inc_doses`.
+#' * Weekly admissions during `(t - 7, t]`, meaningful at t = 7, 14, ...:
+#'   `inc_hosp_week` (no stratum).
 #'
 #' @param run Result of [run_model()].
 #' @param vars Output variables to extract (default: all).

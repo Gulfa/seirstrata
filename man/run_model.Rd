@@ -14,7 +14,8 @@ run_model(
   n_threads = 1,
   vars = NULL,
   state = NULL,
-  t_start = 0
+  t_start = 0,
+  pars = NULL
 )
 }
 \arguments{
@@ -46,6 +47,9 @@ model, instead of the model's initial conditions, e.g. to continue
 from a particle filter's state.}
 
 \item{t_start}{First day to simulate, when continuing from \code{state}.}
+
+\item{pars}{Optional named list of model parameters to replace, see
+\code{\link[=model_pars]{model_pars()}} and \code{\link[=likelihood_pars]{likelihood_pars()}}.}
 }
 \value{
 An object of class \code{seirstrata_run}. Use \code{\link[=get_output]{get_output()}} to extract

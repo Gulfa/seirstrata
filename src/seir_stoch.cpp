@@ -40,6 +40,7 @@
 // [[dust2::parameter(n_obs, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
 // [[dust2::parameter(obs_map, type = "real_type", rank = 2, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(nb_size, type = "real_type", rank = 0, required = TRUE, constant = FALSE)]]
+// [[dust2::parameter(obs_weekly, type = "real_type", rank = 0, required = TRUE, constant = FALSE)]]
 class seir_stoch {
 public:
   seir_stoch() = delete;
@@ -51,7 +52,7 @@ public:
         dust2::packing state;
       } packing;
       struct {
-        std::array<size_t, 15> state;
+        std::array<size_t, 16> state;
       } offset;
     } odin;
     struct dim_type {
@@ -85,6 +86,7 @@ public:
       dust2::array::dimensions<2> S;
       dust2::array::dimensions<1> R;
       dust2::array::dimensions<2> obs_map;
+      dust2::array::dimensions<1> adm_group;
       dust2::array::dimensions<2> adm_contrib;
       dust2::array::dimensions<1> model_admissions;
       dust2::array::dimensions<1> admissions;
@@ -100,6 +102,7 @@ public:
     int n_vacc_time;
     int n_obs;
     real_type nb_size;
+    real_type obs_weekly;
     std::vector<real_type> contact_time;
     std::vector<real_type> contact_value;
     std::vector<real_type> sus;
@@ -169,6 +172,7 @@ public:
     std::vector<real_type> n_S_down;
     std::vector<real_type> vacc_total;
     std::vector<real_type> n_S_vacc_in;
+    std::vector<real_type> adm_group;
     std::vector<real_type> adm_contrib;
     std::vector<real_type> model_admissions;
   };
@@ -191,6 +195,7 @@ public:
     const int n_vacc_time = dust2::r::read_int(parameters, "n_vacc_time");
     const int n_obs = dust2::r::read_int(parameters, "n_obs");
     const real_type nb_size = dust2::r::read_real(parameters, "nb_size");
+    const real_type obs_weekly = dust2::r::read_real(parameters, "obs_weekly");
     dim.contact_time.set({static_cast<size_t>(n_contact_time)});
     dim.contact_value.set({static_cast<size_t>(n_group), static_cast<size_t>(n_group), static_cast<size_t>(n_contact_time)});
     dim.contact.set({static_cast<size_t>(n_group), static_cast<size_t>(n_group)});
@@ -221,6 +226,7 @@ public:
     dim.S.set({static_cast<size_t>(n_group), static_cast<size_t>(n_imm)});
     dim.R.set({static_cast<size_t>(n_group)});
     dim.obs_map.set({static_cast<size_t>(n_obs), static_cast<size_t>(n_group)});
+    dim.adm_group.set({static_cast<size_t>(n_group)});
     dim.adm_contrib.set({static_cast<size_t>(n_obs), static_cast<size_t>(n_group)});
     dim.model_admissions.set({static_cast<size_t>(n_obs)});
     dim.admissions.set({static_cast<size_t>(n_obs)});
@@ -298,10 +304,11 @@ public:
       {"inc_deaths_comm", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())},
       {"R", std::vector<size_t>(dim.R.dim.begin(), dim.R.dim.end())},
       {"cum_doses", std::vector<size_t>(dim.R.dim.begin(), dim.R.dim.end())},
-      {"inc_doses", std::vector<size_t>(dim.R.dim.begin(), dim.R.dim.end())}
+      {"inc_doses", std::vector<size_t>(dim.R.dim.begin(), dim.R.dim.end())},
+      {"inc_hosp_week", std::vector<size_t>(dim.R.dim.begin(), dim.R.dim.end())}
     };
     odin.packing.state.copy_offset(odin.offset.state.begin());
-    return shared_state{odin, dim, n_group, n_imm, n_beta_time, n_beta_t, beta, sigma, gamma, n_contact_time, n_vacc_time, n_obs, nb_size, contact_time, contact_value, sus, trans, p_hosp, p_death_comm, p_death_hosp, waning_rate, dur_hosp, waning_rate_R, vacc_from, vacc_to, R_to, S_ini, E_ini, I_ini, R_ini, beta_time, beta_mult_value, beta_t_time, beta_t_value, vacc_time, vacc_doses_value, obs_map, interpolate_contact, interpolate_beta_mult, interpolate_beta_t, interpolate_vacc_doses, rate_SW};
+    return shared_state{odin, dim, n_group, n_imm, n_beta_time, n_beta_t, beta, sigma, gamma, n_contact_time, n_vacc_time, n_obs, nb_size, obs_weekly, contact_time, contact_value, sus, trans, p_hosp, p_death_comm, p_death_hosp, waning_rate, dur_hosp, waning_rate_R, vacc_from, vacc_to, R_to, S_ini, E_ini, I_ini, R_ini, beta_time, beta_mult_value, beta_t_time, beta_t_value, vacc_time, vacc_doses_value, obs_map, interpolate_contact, interpolate_beta_mult, interpolate_beta_t, interpolate_vacc_doses, rate_SW};
   }
   static internal_state build_internal(const shared_state& shared) {
     std::vector<real_type> N(shared.dim.N.size);
@@ -342,9 +349,10 @@ public:
     std::vector<real_type> n_S_down(shared.dim.n_S_down.size);
     std::vector<real_type> vacc_total(shared.dim.p_R_out.size);
     std::vector<real_type> n_S_vacc_in(shared.dim.n_S_down.size);
+    std::vector<real_type> adm_group(shared.dim.adm_group.size);
     std::vector<real_type> adm_contrib(shared.dim.adm_contrib.size);
     std::vector<real_type> model_admissions(shared.dim.model_admissions.size);
-    return internal_state{N, n_EI, n_I_out, trans_I, S_elig, p_H_out, n_IH, prev, vacc_eligible, n_ID, n_H_out, contact, beta_mult, vacc_doses, contact_prev, vacc_rate, n_HD, n_IR, lambda, rate_SV, n_HR, p_R_out, p_RW_given_out, rate_SE, p_SW_given_not_SE, n_R_out, p_S_out, p_SE_given_out, n_R_wane, n_S_out, n_R_vacc, n_S_R_in, n_SE, n_S_wane, n_SV, n_S_down, vacc_total, n_S_vacc_in, adm_contrib, model_admissions};
+    return internal_state{N, n_EI, n_I_out, trans_I, S_elig, p_H_out, n_IH, prev, vacc_eligible, n_ID, n_H_out, contact, beta_mult, vacc_doses, contact_prev, vacc_rate, n_HD, n_IR, lambda, rate_SV, n_HR, p_R_out, p_RW_given_out, rate_SE, p_SW_given_not_SE, n_R_out, p_S_out, p_SE_given_out, n_R_wane, n_S_out, n_R_vacc, n_S_R_in, n_SE, n_S_wane, n_SV, n_S_down, vacc_total, n_S_vacc_in, adm_group, adm_contrib, model_admissions};
   }
   static data_type build_data(cpp11::list data, const shared_state& shared) {
     auto admissions = std::vector<real_type>(shared.dim.admissions.size);
@@ -356,6 +364,7 @@ public:
     shared.sigma = dust2::r::read_real(parameters, "sigma", shared.sigma);
     shared.gamma = dust2::r::read_real(parameters, "gamma", shared.gamma);
     shared.nb_size = dust2::r::read_real(parameters, "nb_size", shared.nb_size);
+    shared.obs_weekly = dust2::r::read_real(parameters, "obs_weekly", shared.obs_weekly);
     dust2::r::read_real_array(parameters, shared.dim.contact_time, shared.contact_time.data(), "contact_time", false);
     dust2::r::read_real_array(parameters, shared.dim.contact_value, shared.contact_value.data(), "contact_value", false);
     dust2::r::read_real_array(parameters, shared.dim.sus, shared.sus.data(), "sus", false);
@@ -462,6 +471,9 @@ public:
     for (size_t i = 1; i <= shared.dim.R.size; ++i) {
       state[i - 1 + shared.odin.offset.state[14]] = 0;
     }
+    for (size_t i = 1; i <= shared.dim.R.size; ++i) {
+      state[i - 1 + shared.odin.offset.state[15]] = 0;
+    }
   }
   static void update(real_type time, real_type dt, const real_type* state, const shared_state& shared, internal_state& internal, rng_state_type& rng_state, real_type* state_next) {
     const auto * S = state + 0;
@@ -479,6 +491,7 @@ public:
     const auto * R = state + shared.odin.offset.state[12];
     const auto * cum_doses = state + shared.odin.offset.state[13];
     const auto * inc_doses = state + shared.odin.offset.state[14];
+    const auto * inc_hosp_week = state + shared.odin.offset.state[15];
     const real_type p_EI = 1 - monty::math::exp<real_type>(-shared.sigma * dt);
     const real_type p_I_out = 1 - monty::math::exp<real_type>(-shared.gamma * dt);
     for (size_t i = 1; i <= shared.dim.N.size; ++i) {
@@ -705,17 +718,24 @@ public:
     for (size_t i = 1; i <= shared.dim.R.size; ++i) {
       state_next[i - 1 + shared.odin.offset.state[14]] = inc_doses[i - 1] + internal.vacc_total[i - 1] + internal.n_R_vacc[i - 1];
     }
+    for (size_t i = 1; i <= shared.dim.R.size; ++i) {
+      state_next[i - 1 + shared.odin.offset.state[15]] = inc_hosp_week[i - 1] + dust2::array::sum<real_type>(internal.n_IH.data(), shared.dim.n_S_out, {i - 1, i - 1}, {0, shared.dim.n_S_out.dim[1] - 1});
+    }
   }
   static auto zero_every(const shared_state& shared) {
-    return dust2::zero_every_type<real_type>{{1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[8])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[9])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[10])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[11])}}, {1, {dust2::tools::integer_sequence(shared.dim.R.size, shared.odin.offset.state[14])}}};
+    return dust2::zero_every_type<real_type>{{1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[8])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[9])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[10])}}, {1, {dust2::tools::integer_sequence(shared.dim.S.size, shared.odin.offset.state[11])}}, {1, {dust2::tools::integer_sequence(shared.dim.R.size, shared.odin.offset.state[14])}}, {7, {dust2::tools::integer_sequence(shared.dim.R.size, shared.odin.offset.state[15])}}};
   }
   static real_type compare_data(real_type time, const real_type* state, const data_type& data, const shared_state& shared, internal_state& internal, rng_state_type& rng_state) {
     auto unless_nan = [](real_type x) { return std::isnan(x) ? 0 : x; };
     const auto * inc_hosp = state + shared.odin.offset.state[9];
+    const auto * inc_hosp_week = state + shared.odin.offset.state[15];
     real_type odin_ll = 0;
+    for (size_t i = 1; i <= shared.dim.adm_group.size; ++i) {
+      internal.adm_group[i - 1] = shared.obs_weekly * inc_hosp_week[i - 1] + (1 - shared.obs_weekly) * dust2::array::sum<real_type>(inc_hosp, shared.dim.S, {i - 1, i - 1}, {0, shared.dim.S.dim[1] - 1});
+    }
     for (size_t i = 1; i <= shared.dim.adm_contrib.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.adm_contrib.dim[1]; ++j) {
-        internal.adm_contrib[i - 1 + (j - 1) * shared.dim.adm_contrib.mult[1]] = shared.obs_map[i - 1 + (j - 1) * shared.dim.obs_map.mult[1]] * dust2::array::sum<real_type>(inc_hosp, shared.dim.S, {j - 1, j - 1}, {0, shared.dim.S.dim[1] - 1});
+        internal.adm_contrib[i - 1 + (j - 1) * shared.dim.adm_contrib.mult[1]] = shared.obs_map[i - 1 + (j - 1) * shared.dim.obs_map.mult[1]] * internal.adm_group[j - 1];
       }
     }
     for (size_t i = 1; i <= shared.dim.model_admissions.size; ++i) {

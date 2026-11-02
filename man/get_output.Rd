@@ -45,5 +45,7 @@ the person infected. \code{R} and the doses have no stratum: with
 \item Daily incidence during day \verb{(t - 1, t]}: \code{inc_infections}, \code{inc_hosp}
 (admissions), \code{inc_deaths_hosp}, \code{inc_deaths_comm}, \code{inc_deaths},
 \code{inc_doses}.
+\item Weekly admissions during \verb{(t - 7, t]}, meaningful at t = 7, 14, ...:
+\code{inc_hosp_week} (no stratum).
 }
 }

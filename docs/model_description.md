@@ -185,7 +185,7 @@ Plots use ColorBrewer **Dark2** for groups (age, region, scenario, MCMC chain). 
 
 ## Outputs
 
-All outputs are recorded daily and stratified by age, region and immunity stratum (R and doses have no stratum). [`get_output()`](../R/output.R) sums over any strata you don't ask for.
+All outputs are recorded daily and stratified by age, region and immunity stratum (R, doses and weekly admissions have no stratum). [`get_output()`](../R/output.R) sums over any strata you don't ask for.
 
 | Variable | Meaning |
 |---|---|
@@ -193,9 +193,33 @@ All outputs are recorded daily and stratified by age, region and immunity stratu
 | `D_hosp`, `D_comm`, `D` | cumulative deaths (hospital, community, both) |
 | `cum_infections`, `cum_hosp`, `cum_doses` | cumulative infections, hospital admissions, doses given by `vacc_schedule` |
 | `inc_infections`, `inc_hosp`, `inc_deaths_hosp`, `inc_deaths_comm`, `inc_deaths`, `inc_doses` | new infections / admissions / deaths / doses during day $(t-1, t]$ |
+| `inc_hosp_week` | admissions during $(t-7, t]$; meaningful at $t = 7, 14, \dots$ |
 
 Initial infections (`I0`, `E0`) are not counted in `cum_infections` or `inc_infections`.
 
 ## Fitting to hospital admissions
 
-The comparison with data at the end of both odin files (`admissions[] ~ NegativeBinomial(...)`) is the model's likelihood. It is evaluated by dust2's `unfilter` (deterministic) and `filter` (stochastic). Fitting itself, meaning priors, samplers and which parameters are free, belongs in the packages that use `seirstrata`. The exported likelihood constructor is planned for step 1.6 (see the plan in the `sesong` repo).
+**The likelihood is part of the model.** The last block of both odin files compares modelled admissions with observed admissions through a negative binomial distribution, with size `nb_size` (variance $\mu + \mu^2/\text{nb\_size}$). dust2 evaluates it, as an "unfilter" for the ODE model and as a particle filter for the stochastic model.
+
+**Daily or weekly.** The models count admissions both per day (`inc_hosp`, reset every day) and per week (`inc_hosp_week`, by group, reset at days 7, 14, …). The parameter `obs_weekly` selects which is compared with the data. Weekly data are admissions during $(t-7, t]$ at $t = 7, 14, \dots$, so **model day 0 must be the first day of a reporting week**, which is a Monday for ISO weeks.
+
+**Several series.** Data can be split by age and/or region. Each series is the weighted sum of the model groups that `obs_map[series, group]` maps to it. With `model_data(..., age_groups = )`, several model age groups can count towards one coarser data age group.
+
+**From fitted values to model parameters.** `model_likelihood(model, data, pars, process, initial)` returns a monty model. Each fitted parameter is either a scalar model parameter used directly (e.g. `beta`, `nb_size`), or goes through a `process` function that returns model parameters to replace, at the level of `model$pars`:
+
+```r
+lik <- model_likelihood(m, data, pars = c("scale", "amp", "severity", "nb_size"),
+  process = function(x) list(
+    beta = m$beta * x$scale,
+    beta_t_value = my_seasonality(x$amp),       # built outside the package
+    p_hosp = m$pars$p_hosp * x$severity),
+  initial = c(scale = 1, amp = 0.2, severity = 1, nb_size = 20))
+prior <- monty::monty_dsl({ scale ~ Uniform(0.5, 2); ... })
+posterior <- lik$likelihood + prior
+```
+
+`process` must keep parameter sizes fixed (e.g. the number of `beta_t` knots), because array sizes are fixed when the model is compiled for a run. It works below `build_model()`, so nothing derived is recalculated: to fit R0 rather than `beta`, convert in `process`.
+
+**Projections.** `likelihood_pars(lik, x)` gives the model parameters that the fit sets at a value `x`, and `run_model(model, pars = ...)` runs with them. `model` can be a scenario variant of the fitted model.
+
+Priors, samplers and the choice of free parameters belong to the packages that use `seirstrata`.

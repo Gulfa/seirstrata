@@ -168,7 +168,9 @@ dim(S, E, I, H, D_hosp, D_comm, cum_infections, cum_hosp,
 initial(R[]) <- R_ini[i]
 initial(cum_doses[]) <- 0
 initial(inc_doses[], zero_every = 1) <- 0
-dim(R, cum_doses, inc_doses) <- n_group
+# Weekly admissions (see seir_ode.R)
+initial(inc_hosp_week[], zero_every = 7) <- 0
+dim(R, cum_doses, inc_doses, inc_hosp_week) <- n_group
 
 update(S[, ]) <- S[i, j] - n_S_out[i, j] + n_S_down[i, j] + n_S_vacc_in[i, j] +
   n_S_R_in[i, j]
@@ -186,14 +188,20 @@ update(inc_deaths_hosp[, ]) <- inc_deaths_hosp[i, j] + n_HD[i, j]
 update(inc_deaths_comm[, ]) <- inc_deaths_comm[i, j] + n_ID[i, j]
 update(cum_doses[]) <- cum_doses[i] + vacc_total[i] + n_R_vacc[i]
 update(inc_doses[]) <- inc_doses[i] + vacc_total[i] + n_R_vacc[i]
+update(inc_hosp_week[]) <- inc_hosp_week[i] + sum(n_IH[i, ])
 
 ## ---- Comparison to data (used only when fitting) --------------------------
 n_obs  <- parameter(type = "integer", constant = TRUE)
 obs_map <- parameter()
 dim(obs_map) <- c(n_obs, n_group)
 nb_size <- parameter()   # negative binomial dispersion (larger = less noise)
+# 1: compare weekly admissions (data at days 7, 14, ...); 0: daily
+obs_weekly <- parameter()
 
-adm_contrib[, ] <- obs_map[i, j] * sum(inc_hosp[j, ])
+adm_group[] <- obs_weekly * inc_hosp_week[i] +
+  (1 - obs_weekly) * sum(inc_hosp[i, ])
+dim(adm_group) <- n_group
+adm_contrib[, ] <- obs_map[i, j] * adm_group[j]
 dim(adm_contrib) <- c(n_obs, n_group)
 model_admissions[] <- sum(adm_contrib[i, ])
 dim(model_admissions) <- n_obs

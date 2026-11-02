@@ -22,6 +22,8 @@
 #'   model, instead of the model's initial conditions, e.g. to continue
 #'   from a particle filter's state.
 #' @param t_start First day to simulate, when continuing from `state`.
+#' @param pars Optional named list of model parameters to replace, see
+#'   [model_pars()] and [likelihood_pars()].
 #'
 #' @return An object of class `seirstrata_run`. Use [get_output()] to extract
 #'   results as a table, and `summary()` / `plot()` to look at them.
@@ -33,11 +35,14 @@
 run_model <- function(model, type = c("deterministic", "stochastic"),
                       t_max = 365, n_sim = 100, dt = 0.1, seed = NULL,
                       n_threads = 1, vars = NULL, state = NULL,
-                      t_start = 0) {
+                      t_start = 0, pars = NULL) {
   if (!inherits(model, "seirstrata_model")) {
     stop("'model' must be created with build_model()")
   }
   type <- match.arg(type)
+  if (!is.null(pars)) {
+    model$pars <- model_pars(model, pars)
+  }
   check_range(t_max, "t_max", min_open = TRUE)
   check_range(t_start, "t_start")
   if (t_start >= t_max) {

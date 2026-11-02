@@ -300,7 +300,8 @@ build_model <- function(N,
     # Observation model, only used when fitting (the likelihood replaces these)
     n_obs = 1L,
     obs_map = matrix(1, 1, n_group),
-    nb_size = 10)
+    nb_size = 10,
+    obs_weekly = 0)
 
   if (is.null(beta)) {
     beta <- R0 / r0_per_beta(contact, pars$sus, pars$trans, N_group,

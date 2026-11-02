@@ -20,8 +20,10 @@ or fitting strategy:
   protected R per group that wanes back into it);
 - a global transmission multiplier over time (`beta_t`), so seasonality and
   holidays can be built outside the package;
-- the observation model (the likelihood used for fitting), and an exported
-  likelihood constructor (planned);
+- the observation model (daily or weekly admissions, by age and/or region),
+  which is the likelihood used for fitting, and an exported likelihood
+  constructor (`model_likelihood()`) that maps fitted values onto model
+  parameters;
 - running, output, summaries and plots.
 
 Priors, samplers, choice of free parameters, seasonality and holiday
@@ -29,9 +31,9 @@ functions, and country data live in the packages that use it.
 
 ## Status
 
-Work in progress: the immunity strata, waning, R and the transmission
-multiplier `beta_t` are in place; R_eff checks, the weekly observation model
-and the exported likelihood constructor are next.
+Work in progress, but the base model is in place: immunity strata, waning,
+R, the transmission multiplier `beta_t`, the weekly observation model and the
+likelihood constructor.
 
 ## Development
 

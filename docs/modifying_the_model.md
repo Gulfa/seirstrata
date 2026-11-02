@@ -109,12 +109,13 @@ Then:
 
 ## Changing the observation model
 
-The comparison with data is the last block of both odin files: `admissions <- data()` and `admissions[] ~ NegativeBinomial(...)`. To fit to a different quantity, for example deaths:
+The comparison with data is the last block of both odin files: `admissions <- data()` and `admissions[] ~ NegativeBinomial(...)`, with `adm_group` choosing daily (`inc_hosp`) or weekly (`inc_hosp_week`) admissions per group. To fit to a different quantity, for example deaths:
 
-1. Change `model_admissions` in both files to sum `inc_deaths_hosp + inc_deaths_comm` instead.
+1. Add a weekly accumulator for it (like `inc_hosp_week`, with `zero_every = 7`) and use it in `adm_group` in both files.
 2. Regenerate the code.
+3. Rename the data column where `R/likelihood.R` checks and builds `admissions`.
 
-To fit two data streams at once, add a second `data()` and `~` line.
+To fit two data streams at once, add a second `data()` and `~` line, and extend `model_data()` to build both.
 
 **odin2 pitfall:** a literal whole number inside a `~` comparison, such as `NegativeBinomial(size = 10, ...)`, fails to compile ("deduced conflicting types ‘double’ and ‘int’"). Make the value a `parameter()` instead, as is done for `nb_size`.
 

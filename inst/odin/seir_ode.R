@@ -182,7 +182,10 @@ initial(R[]) <- R_ini[i]
 # Doses given by vacc_schedule (to S and R alike)
 initial(cum_doses[]) <- 0
 initial(inc_doses[], zero_every = 1) <- 0
-dim(R, cum_doses, inc_doses) <- n_group
+# Weekly admissions: flow during (t - 7, t] at t = 7, 14, ...; model day 0 is
+# the first day of a reporting week
+initial(inc_hosp_week[], zero_every = 7) <- 0
+dim(R, cum_doses, inc_doses, inc_hosp_week) <- n_group
 
 deriv(S[, ]) <- -n_SE[i, j] - n_S_wane[i, j] - n_SV[i, j] + n_S_down[i, j] +
   n_S_vacc_in[i, j] + n_S_R_in[i, j]
@@ -200,17 +203,23 @@ deriv(inc_deaths_hosp[, ]) <- n_HD[i, j]
 deriv(inc_deaths_comm[, ]) <- n_ID[i, j]
 deriv(cum_doses[]) <- sum(n_SV[i, ]) + n_R_vacc[i]
 deriv(inc_doses[]) <- sum(n_SV[i, ]) + n_R_vacc[i]
+deriv(inc_hosp_week[]) <- sum(n_IH[i, ])
 
 ## ---- Comparison to data (used only when fitting) --------------------------
-# Observed daily hospital admissions, as n_obs series. obs_map[k, g] = 1 if
-# group g contributes to series k (built in R from the data's region / age
-# columns; by default one national series).
+# Observed hospital admissions (daily or weekly), as n_obs series.
+# obs_map[k, g] is the weight of group g in series k (built in R from the
+# data's region / age columns; by default one national series).
 n_obs  <- parameter(type = "integer", constant = TRUE)
 obs_map <- parameter()
 dim(obs_map) <- c(n_obs, n_group)
 nb_size <- parameter()   # negative binomial dispersion (larger = less noise)
+# 1: compare weekly admissions (data at days 7, 14, ...); 0: daily
+obs_weekly <- parameter()
 
-adm_contrib[, ] <- obs_map[i, j] * sum(inc_hosp[j, ])
+adm_group[] <- obs_weekly * inc_hosp_week[i] +
+  (1 - obs_weekly) * sum(inc_hosp[i, ])
+dim(adm_group) <- n_group
+adm_contrib[, ] <- obs_map[i, j] * adm_group[j]
 dim(adm_contrib) <- c(n_obs, n_group)
 model_admissions[] <- sum(adm_contrib[i, ])
 dim(model_admissions) <- n_obs

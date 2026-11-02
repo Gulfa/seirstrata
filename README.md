@@ -5,9 +5,10 @@ deaths, written in [odin2](https://mrc-ide.github.io/odin2/) and run with
 [dust2](https://mrc-ide.github.io/dust2/). It has a deterministic (ODE)
 version and a stochastic (tau-leaping) version of the same model.
 
-Derived from [seirvax](https://github.com/Gulfa/modelling_prep_ex) (commit
-`64face5`). seirvax stays the preparedness-exercise package; `seirstrata` is
-the production base model for the seasonal respiratory work in `sesong`.
+It started as a copy of the model in
+[modelling_prep_ex](https://github.com/Gulfa/modelling_prep_ex), the
+preparedness-exercise package, and is developed independently from it.
+`seirstrata` is the base model for the seasonal respiratory work in `sesong`.
 
 ## Scope
 
@@ -28,10 +29,8 @@ functions, and country data live in the packages that use it.
 
 ## Status
 
-Work in progress. Steps 1.1 (copy from seirvax and trim) and 1.2 (immunity
-strata, waning, single R) of the plan are done.
-Fitting, the bundled fictional-country data and the line-list simulator from
-seirvax have been removed.
+Work in progress: the immunity strata, waning and R are in place; the daily
+transmission multiplier and the exported likelihood constructor are next.
 
 ## Development
 

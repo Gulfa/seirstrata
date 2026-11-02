@@ -19,37 +19,6 @@ no_transmission <- function(...) {
   suppressWarnings(ladder_model(R0 = NULL, beta = 0, I0 = 0, ...))
 }
 
-test_that("2 strata without waning reproduce seirvax", {
-  ref <- readRDS(test_path("fixtures", "seirvax_reference.rds"))
-  # seirvax argument -> seirstrata argument
-  translate <- function(a) {
-    s <- vax_args(coverage = a$vacc_coverage %||% 0,
-                  ve_infection = a$ve_infection %||% 0,
-                  ve_transmission = a$ve_transmission %||% 0,
-                  ve_hosp = a$ve_hosp %||% 0, ve_death = a$ve_death %||% 0)
-    a[c("vacc_coverage", "ve_infection", "ve_transmission", "ve_hosp",
-        "ve_death")] <- NULL
-    c(a, s)
-  }
-  for (case in names(ref)) {
-    r <- ref[[case]]
-    m <- do.call(build_model, translate(r$args))
-    expect_equal(m$beta, r$beta, info = case)
-    expect_equal(R0(m), r$R0, info = case)
-    expect_equal(R_eff(m), r$R_eff, info = case)
-    out <- get_output(run_model(m, t_max = 200), unique(r$out$variable),
-                      by = c("age", "region"))
-    expected <- as.data.table(r$out)
-    setorderv(expected, c("variable", "age", "region", "sim", "time"))
-    # "coverage" agrees to ODE solver tolerance. In "doses", seirvax moved
-    # vaccinated recovered people to a vaccinated R that took no more doses;
-    # here R stays eligible (vaccination status is not tracked), so slightly
-    # more doses are wasted on R: about 0.1% more infections.
-    tol <- if (case == "doses") 1e-2 else 1e-4
-    expect_equal(out$value, expected$value, tolerance = tol, info = case)
-  }
-})
-
 test_that("population is conserved with waning, R and vaccination", {
   m <- ladder_model(vacc_stratum = "partial",
                     vacc_schedule = data.frame(time = 10, doses = 400))

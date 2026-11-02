@@ -6,7 +6,6 @@ Description: Deterministic (ODE) and stochastic (tau-leaping) SEIR transmission
     models with hospitalisation and deaths, stratified by age group, region and
     level of immunity. Models are written in odin2 and run with dust2; the
     built-in observation model gives a likelihood for fitting with monty.
-    Derived from the 'seirvax' preparedness-exercise package.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

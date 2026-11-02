@@ -23,8 +23,9 @@ det_admissions <- function(model, t_max, by = character(0)) {
   d[, c("time", by, "admissions"), with = FALSE]
 }
 
-# Two strata playing the role of seirvax's unvaccinated / vaccinated: VE
-# becomes 1 - the stratum multiplier, coverage the initial share in stratum 2.
+# Two strata, unvaccinated / vaccinated, set up from vaccine effectiveness:
+# VE becomes 1 - the stratum multiplier, coverage the initial share in
+# stratum 2.
 vax_args <- function(coverage = 0, ve_infection = 0, ve_transmission = 0,
                      ve_hosp = 0, ve_death = 0) {
   list(strata = c("unvaccinated", "vaccinated"),

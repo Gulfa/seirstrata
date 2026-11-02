@@ -8,6 +8,7 @@
 // [[dust2::parameter(n_group, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
 // [[dust2::parameter(n_imm, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
 // [[dust2::parameter(n_beta_time, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
+// [[dust2::parameter(n_beta_t, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
 // [[dust2::parameter(beta, type = "real_type", rank = 0, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(sigma, type = "real_type", rank = 0, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(gamma, type = "real_type", rank = 0, required = TRUE, constant = FALSE)]]
@@ -31,6 +32,8 @@
 // [[dust2::parameter(R_ini, type = "real_type", rank = 1, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(beta_time, type = "real_type", rank = 1, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(beta_mult_value, type = "real_type", rank = 2, required = TRUE, constant = FALSE)]]
+// [[dust2::parameter(beta_t_time, type = "real_type", rank = 1, required = TRUE, constant = FALSE)]]
+// [[dust2::parameter(beta_t_value, type = "real_type", rank = 1, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(n_vacc_time, type = "int", rank = 0, required = TRUE, constant = TRUE)]]
 // [[dust2::parameter(vacc_time, type = "real_type", rank = 1, required = TRUE, constant = FALSE)]]
 // [[dust2::parameter(vacc_doses_value, type = "real_type", rank = 2, required = TRUE, constant = FALSE)]]
@@ -63,6 +66,7 @@ public:
       dust2::array::dimensions<1> beta_time;
       dust2::array::dimensions<2> beta_mult_value;
       dust2::array::dimensions<1> beta_mult;
+      dust2::array::dimensions<1> beta_t_time;
       dust2::array::dimensions<1> vacc_time;
       dust2::array::dimensions<2> vacc_doses_value;
       dust2::array::dimensions<1> vacc_doses;
@@ -86,6 +90,7 @@ public:
     int n_group;
     int n_imm;
     int n_beta_time;
+    int n_beta_t;
     real_type beta;
     real_type sigma;
     real_type gamma;
@@ -112,11 +117,14 @@ public:
     std::vector<real_type> R_ini;
     std::vector<real_type> beta_time;
     std::vector<real_type> beta_mult_value;
+    std::vector<real_type> beta_t_time;
+    std::vector<real_type> beta_t_value;
     std::vector<real_type> vacc_time;
     std::vector<real_type> vacc_doses_value;
     std::vector<real_type> obs_map;
     dust2::interpolate::InterpolateConstantArray<real_type, 2> interpolate_contact;
     dust2::interpolate::InterpolateConstantArray<real_type, 1> interpolate_beta_mult;
+    dust2::interpolate::InterpolateLinear<real_type> interpolate_beta_t;
     dust2::interpolate::InterpolateConstantArray<real_type, 1> interpolate_vacc_doses;
   };
   struct internal_state {
@@ -162,6 +170,7 @@ public:
     const int n_group = dust2::r::read_int(parameters, "n_group");
     const int n_imm = dust2::r::read_int(parameters, "n_imm");
     const int n_beta_time = dust2::r::read_int(parameters, "n_beta_time");
+    const int n_beta_t = dust2::r::read_int(parameters, "n_beta_t");
     const real_type beta = dust2::r::read_real(parameters, "beta");
     const real_type sigma = dust2::r::read_real(parameters, "sigma");
     const real_type gamma = dust2::r::read_real(parameters, "gamma");
@@ -180,6 +189,7 @@ public:
     dim.beta_time.set({static_cast<size_t>(n_beta_time)});
     dim.beta_mult_value.set({static_cast<size_t>(n_group), static_cast<size_t>(n_beta_time)});
     dim.beta_mult.set({static_cast<size_t>(n_group)});
+    dim.beta_t_time.set({static_cast<size_t>(n_beta_t)});
     dim.vacc_time.set({static_cast<size_t>(n_vacc_time)});
     dim.vacc_doses_value.set({static_cast<size_t>(n_group), static_cast<size_t>(n_vacc_time)});
     dim.vacc_doses.set({static_cast<size_t>(n_group)});
@@ -237,6 +247,10 @@ public:
     dust2::r::read_real_array(parameters, dim.beta_time, beta_time.data(), "beta_time", true);
     std::vector<real_type> beta_mult_value(dim.beta_mult_value.size);
     dust2::r::read_real_array(parameters, dim.beta_mult_value, beta_mult_value.data(), "beta_mult_value", true);
+    std::vector<real_type> beta_t_time(dim.beta_t_time.size);
+    dust2::r::read_real_array(parameters, dim.beta_t_time, beta_t_time.data(), "beta_t_time", true);
+    std::vector<real_type> beta_t_value(dim.beta_t_time.size);
+    dust2::r::read_real_array(parameters, dim.beta_t_time, beta_t_value.data(), "beta_t_value", true);
     std::vector<real_type> vacc_time(dim.vacc_time.size);
     dust2::r::read_real_array(parameters, dim.vacc_time, vacc_time.data(), "vacc_time", true);
     std::vector<real_type> vacc_doses_value(dim.vacc_doses_value.size);
@@ -245,6 +259,7 @@ public:
     dust2::r::read_real_array(parameters, dim.obs_map, obs_map.data(), "obs_map", true);
     const auto interpolate_contact = dust2::interpolate::InterpolateConstantArray<real_type, 2>(contact_time, contact_value, dim.contact, "contact_time", "contact_value");
     const auto interpolate_beta_mult = dust2::interpolate::InterpolateConstantArray<real_type, 1>(beta_time, beta_mult_value, dim.beta_mult, "beta_time", "beta_mult_value");
+    const auto interpolate_beta_t = dust2::interpolate::InterpolateLinear(beta_t_time, beta_t_value, "beta_t_time", "beta_t_value");
     const auto interpolate_vacc_doses = dust2::interpolate::InterpolateConstantArray<real_type, 1>(vacc_time, vacc_doses_value, dim.vacc_doses, "vacc_time", "vacc_doses_value");
     shared_state::odin_internals_type odin;
     odin.packing.state = dust2::packing{
@@ -265,7 +280,7 @@ public:
       {"inc_doses", std::vector<size_t>(dim.R.dim.begin(), dim.R.dim.end())}
     };
     odin.packing.state.copy_offset(odin.offset.state.begin());
-    return shared_state{odin, dim, n_group, n_imm, n_beta_time, beta, sigma, gamma, n_contact_time, n_vacc_time, n_obs, nb_size, contact_time, contact_value, sus, trans, p_hosp, p_death_comm, p_death_hosp, waning_rate, dur_hosp, waning_rate_R, vacc_from, vacc_to, R_to, S_ini, E_ini, I_ini, R_ini, beta_time, beta_mult_value, vacc_time, vacc_doses_value, obs_map, interpolate_contact, interpolate_beta_mult, interpolate_vacc_doses};
+    return shared_state{odin, dim, n_group, n_imm, n_beta_time, n_beta_t, beta, sigma, gamma, n_contact_time, n_vacc_time, n_obs, nb_size, contact_time, contact_value, sus, trans, p_hosp, p_death_comm, p_death_hosp, waning_rate, dur_hosp, waning_rate_R, vacc_from, vacc_to, R_to, S_ini, E_ini, I_ini, R_ini, beta_time, beta_mult_value, beta_t_time, beta_t_value, vacc_time, vacc_doses_value, obs_map, interpolate_contact, interpolate_beta_mult, interpolate_beta_t, interpolate_vacc_doses};
   }
   static internal_state build_internal(const shared_state& shared) {
     std::vector<real_type> N(shared.dim.N.size);
@@ -329,11 +344,14 @@ public:
     dust2::r::read_real_array(parameters, shared.dim.R_ini, shared.R_ini.data(), "R_ini", false);
     dust2::r::read_real_array(parameters, shared.dim.beta_time, shared.beta_time.data(), "beta_time", false);
     dust2::r::read_real_array(parameters, shared.dim.beta_mult_value, shared.beta_mult_value.data(), "beta_mult_value", false);
+    dust2::r::read_real_array(parameters, shared.dim.beta_t_time, shared.beta_t_time.data(), "beta_t_time", false);
+    dust2::r::read_real_array(parameters, shared.dim.beta_t_time, shared.beta_t_value.data(), "beta_t_value", false);
     dust2::r::read_real_array(parameters, shared.dim.vacc_time, shared.vacc_time.data(), "vacc_time", false);
     dust2::r::read_real_array(parameters, shared.dim.vacc_doses_value, shared.vacc_doses_value.data(), "vacc_doses_value", false);
     dust2::r::read_real_array(parameters, shared.dim.obs_map, shared.obs_map.data(), "obs_map", false);
     shared.interpolate_contact = dust2::interpolate::InterpolateConstantArray<real_type, 2>(shared.contact_time, shared.contact_value, shared.dim.contact, "contact_time", "contact_value");
     shared.interpolate_beta_mult = dust2::interpolate::InterpolateConstantArray<real_type, 1>(shared.beta_time, shared.beta_mult_value, shared.dim.beta_mult, "beta_time", "beta_mult_value");
+    shared.interpolate_beta_t = dust2::interpolate::InterpolateLinear(shared.beta_t_time, shared.beta_t_value, "beta_t_time", "beta_t_value");
     shared.interpolate_vacc_doses = dust2::interpolate::InterpolateConstantArray<real_type, 1>(shared.vacc_time, shared.vacc_doses_value, shared.dim.vacc_doses, "vacc_time", "vacc_doses_value");
   }
   static void update_internal(const shared_state& shared, internal_state& internal) {
@@ -484,6 +502,7 @@ public:
     }
     shared.interpolate_contact.eval(time, internal.contact);
     shared.interpolate_beta_mult.eval(time, internal.beta_mult);
+    const real_type beta_t = shared.interpolate_beta_t.eval(time);
     shared.interpolate_vacc_doses.eval(time, internal.vacc_doses);
     for (size_t i = 1; i <= shared.dim.contact_prev.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.contact_prev.dim[1]; ++j) {
@@ -504,7 +523,7 @@ public:
       }
     }
     for (size_t i = 1; i <= shared.dim.lambda.size; ++i) {
-      internal.lambda[i - 1] = shared.beta * dust2::array::sum<real_type>(internal.contact_prev.data(), shared.dim.contact_prev, {i - 1, i - 1}, {0, shared.dim.contact_prev.dim[1] - 1});
+      internal.lambda[i - 1] = shared.beta * beta_t * dust2::array::sum<real_type>(internal.contact_prev.data(), shared.dim.contact_prev, {i - 1, i - 1}, {0, shared.dim.contact_prev.dim[1] - 1});
     }
     for (size_t i = 1; i <= shared.dim.n_SE.dim[0]; ++i) {
       for (size_t j = 1; j <= shared.dim.n_SE.dim[1]; ++j) {

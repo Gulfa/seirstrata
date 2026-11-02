@@ -35,8 +35,9 @@ r0_per_beta <- function(contact, sus, trans, N_group, infectious_period) {
 #' next-generation matrix for a population entirely in stratum 1 (no
 #' immunity) without contact multipliers. `R_eff` uses the initial
 #' distribution over the immunity strata (people in `R` cannot be infected)
-#' and the contact multipliers at time `time`. It does not include later
-#' changes: infections, waning, or doses given by `vacc_schedule`.
+#' and the contact multipliers and `beta_t` at time `time`. It does not
+#' include later changes: infections, waning, or doses given by
+#' `vacc_schedule`. `R0` does not include `beta_t`.
 #'
 #' Note that the NGM R0 gives the right *generation-to-generation* growth once
 #' the epidemic has settled into the dominant eigenvector's age/region
@@ -65,7 +66,8 @@ contact_at <- function(model, time) {
 R_eff <- function(model, time = 0) {
   p <- model$pars
   k <- findInterval(time, p$beta_time)
+  bt <- beta_t_at(model, time)
   S <- p$S_ini + p$E_ini + p$I_ini
-  spectral_radius(ngm(p$beta, contact_at(model, time), p$sus, p$trans, S,
+  spectral_radius(ngm(p$beta * bt, contact_at(model, time), p$sus, p$trans, S,
                       model$N_group, p$beta_mult_value[, k], 1 / p$gamma))
 }

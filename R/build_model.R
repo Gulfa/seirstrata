@@ -99,6 +99,17 @@
 #'   overrides it. `mult` is the fraction of the group's contacts that still
 #'   happen: contacts between groups i and j are scaled by
 #'   `min(mult_i, mult_j)`.
+#' @param beta_t Optional global transmission multiplier over time, for
+#'   seasonality, holidays and the like, typically built outside the package.
+#'   It multiplies `beta` for everyone, on top of `beta_schedule`. Either a
+#'   numeric vector of daily values (`beta_t[1]` at day 0, `beta_t[2]` at day
+#'   1, ...), or a data.frame with columns `time` (starting at 0) and `mult`.
+#'   The values are knots: the multiplier is linear between them, so a sharp
+#'   step is two knots a day apart. (Linear rather than piecewise constant,
+#'   because daily steps make the ODE solver several times slower.) After the
+#'   last knot it keeps the last value: [run_model()] warns when a run goes
+#'   beyond the end of a daily vector. `R0` does not include `beta_t`;
+#'   `R_eff(model, time)` does.
 #'
 #' @return An object of class `seirstrata_model`.
 #' @export
@@ -141,7 +152,8 @@ build_model <- function(N,
                         E0 = 0,
                         beta_schedule = NULL,
                         mixing_schedule = NULL,
-                        vacc_schedule = NULL) {
+                        vacc_schedule = NULL,
+                        beta_t = NULL) {
   args <- as.list(environment())
 
   pop <- parse_population(N)
@@ -248,6 +260,7 @@ build_model <- function(N,
   seed <- function(x) cbind(as.vector(x), matrix(0, n_group, n_imm - 1))
 
   sched <- build_beta_schedule(beta_schedule, dims)
+  bt <- build_beta_t(beta_t)
   vacc <- build_vacc_schedule(vacc_schedule, dims, N)
   one_hot <- function(k) as.numeric(seq_len(n_imm) == k)
 
@@ -278,6 +291,9 @@ build_model <- function(N,
     R_ini = R_ini,
     beta_time = sched$time,
     beta_mult_value = sched$value,
+    n_beta_t = length(bt$time),
+    beta_t_time = bt$time,
+    beta_t_value = bt$value,
     n_vacc_time = length(vacc$time),
     vacc_time = vacc$time,
     vacc_doses_value = vacc$value,
@@ -306,6 +322,7 @@ build_model <- function(N,
          C_age = C_age,
          M_region = M_region,
          mixing_time = mixing$time,
+         beta_t_end = bt$end,
          epi = list(susceptibility = susceptibility,
                     transmissibility = transmissibility,
                     p_hosp = p_hosp, p_death_hosp = p_death_hosp,
@@ -371,6 +388,12 @@ print.seirstrata_model <- function(x, ...) {
                 x$strata$R_to_stratum,
                 paste(signif(colMeans(x$strata$waning_rate), 3),
                       collapse = ", ")))
+  }
+  if (!is.null(x$args$beta_t)) {
+    cat(sprintf("  beta_t: %d value(s) from %.3g to %.3g%s\n", x$pars$n_beta_t - 1L,
+                min(x$pars$beta_t_value), max(x$pars$beta_t_value),
+                if (is.na(x$beta_t_end)) "" else
+                  sprintf(", daily until day %g", x$beta_t_end)))
   }
   if (x$pars$n_beta_time > 1) {
     cat(sprintf("  Contact multipliers change at time(s): %s\n",

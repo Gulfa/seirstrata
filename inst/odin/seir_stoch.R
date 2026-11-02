@@ -13,6 +13,7 @@
 n_group     <- parameter(type = "integer", constant = TRUE)
 n_imm       <- parameter(type = "integer", constant = TRUE)
 n_beta_time <- parameter(type = "integer", constant = TRUE)
+n_beta_t    <- parameter(type = "integer", constant = TRUE)
 
 beta  <- parameter()   # transmission rate (calibrated from R0 in R)
 sigma <- parameter()   # 1 / latent period
@@ -62,6 +63,12 @@ dim(beta_mult_value) <- c(n_group, n_beta_time)
 beta_mult <- interpolate(beta_time, beta_mult_value, "constant")
 dim(beta_mult) <- n_group
 
+# Global transmission multiplier over time (see seir_ode.R)
+beta_t_time  <- parameter()
+beta_t_value <- parameter()
+dim(beta_t_time, beta_t_value) <- n_beta_t
+beta_t <- interpolate(beta_t_time, beta_t_value, "linear")
+
 # Vaccination over time: doses per day given to each group
 n_vacc_time      <- parameter(type = "integer", constant = TRUE)
 vacc_time        <- parameter()
@@ -83,7 +90,7 @@ dim(prev) <- n_group
 contact_prev[, ] <- contact[i, j] * min(beta_mult[i], beta_mult[j]) * prev[j]
 dim(contact_prev) <- c(n_group, n_group)
 
-lambda[] <- beta * sum(contact_prev[i, ])
+lambda[] <- beta * beta_t * sum(contact_prev[i, ])
 dim(lambda) <- n_group
 
 ## ---- Vaccination ----------------------------------------------------------

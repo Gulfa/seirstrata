@@ -33,7 +33,8 @@ build_model(
   E0 = 0,
   beta_schedule = NULL,
   mixing_schedule = NULL,
-  vacc_schedule = NULL
+  vacc_schedule = NULL,
+  beta_t = NULL
 )
 }
 \arguments{
@@ -119,6 +120,18 @@ and/or \code{region} to target groups (\code{NA} = all). Rows work as in
 per day between them, shared in proportion to their population, until a
 later row matching them overrides it (\code{doses = 0} ends a campaign). When a
 group's eligible people run out, its vaccination stops.}
+
+\item{beta_t}{Optional global transmission multiplier over time, for
+seasonality, holidays and the like, typically built outside the package.
+It multiplies \code{beta} for everyone, on top of \code{beta_schedule}. Either a
+numeric vector of daily values (\code{beta_t[1]} at day 0, \code{beta_t[2]} at day
+1, ...), or a data.frame with columns \code{time} (starting at 0) and \code{mult}.
+The values are knots: the multiplier is linear between them, so a sharp
+step is two knots a day apart. (Linear rather than piecewise constant,
+because daily steps make the ODE solver several times slower.) After the
+last knot it keeps the last value: \code{\link[=run_model]{run_model()}} warns when a run goes
+beyond the end of a daily vector. \code{R0} does not include \code{beta_t};
+\code{R_eff(model, time)} does.}
 }
 \value{
 An object of class \code{seirstrata_model}.

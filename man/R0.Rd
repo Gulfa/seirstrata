@@ -22,8 +22,9 @@ A single number.
 next-generation matrix for a population entirely in stratum 1 (no
 immunity) without contact multipliers. \code{R_eff} uses the initial
 distribution over the immunity strata (people in \code{R} cannot be infected)
-and the contact multipliers at time \code{time}. It does not include later
-changes: infections, waning, or doses given by \code{vacc_schedule}.
+and the contact multipliers and \code{beta_t} at time \code{time}. It does not
+include later changes: infections, waning, or doses given by
+\code{vacc_schedule}. \code{R0} does not include \code{beta_t}.
 }
 \details{
 Note that the NGM R0 gives the right \emph{generation-to-generation} growth once

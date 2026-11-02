@@ -44,6 +44,11 @@ run_model <- function(model, type = c("deterministic", "stochastic"),
     stop("'t_start' must be before 't_max'")
   }
   times <- seq(ceiling(t_start), ceiling(t_max))
+  if (!is.na(model$beta_t_end) && t_max > model$beta_t_end) {
+    warning(sprintf(paste(
+      "'beta_t' covers days 0 to %g, but the run goes to day %g:",
+      "its last value is held after that"), model$beta_t_end, t_max))
+  }
 
   if (type == "deterministic") {
     n_sim <- 1L

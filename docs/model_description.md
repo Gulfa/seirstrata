@@ -37,12 +37,13 @@ Vaccination status is not tracked. Doses from `vacc_schedule` move people up the
 ## Force of infection
 
 $$
-\lambda_g(t) = \beta \sum_{h} C_{gh}\, \min\big(m_g(t), m_h(t)\big)\; \frac{\sum_k \text{trans}_{hk} I_{hk}}{N_h}
+\lambda_g(t) = \beta\, b(t) \sum_{h} C_{gh}\, \min\big(m_g(t), m_h(t)\big)\; \frac{\sum_k \text{trans}_{hk} I_{hk}}{N_h}
 $$
 
 - $N_h$ is the living population of group $h$ ($S+E+I+H$ over all strata, plus $R$).
 - $C_{gh}$ is the number of contacts per day a person in group $g$ has with people in group $h$.
 - $\text{sus}_{gk}$ and $\text{trans}_{hk}$ are the relative susceptibility and infectiousness: the group's `susceptibility` / `transmissibility` times the stratum's `rel_susceptibility` / `rel_transmissibility`.
+- $b(t)$ is the global transmission multiplier `beta_t` (see [Transmission multiplier over time](#transmission-multiplier-over-time)).
 - $m_g(t)$ is the contact multiplier from `beta_schedule`: the fraction of group $g$'s contacts that still happen. Contacts between $g$ and $h$ are scaled by $\min(m_g, m_h)$, so the more restricted group decides:
   - A multiplier applied to everyone scales all transmission by exactly that factor.
   - "65+ at 0.5" halves every contact involving someone aged 65+, including their contacts with other age groups.
@@ -51,6 +52,24 @@ $$
   - Where two restricted groups meet, the stricter multiplier applies; the two are not multiplied together.
 
 New infections in group $g$, stratum $k$, occur at rate $\lambda_g\,\text{sus}_{gk}\,S_{gk}$.
+
+### Transmission multiplier over time
+
+`beta_t` multiplies transmission for everyone. It is meant for seasonality, holidays and similar effects, which are built outside the package (in `sesong`) and passed in as numbers:
+
+```r
+days <- 0:209
+seasonal <- 1 + 0.25 * cos(2 * pi * (days - 100) / 365)
+holiday <- ifelse(days %in% 90:105, 0.85, 1)
+build_model(..., beta_t = seasonal * holiday)          # one knot per day
+build_model(..., beta_t = data.frame(time = c(0, 89, 90, 105, 106),
+                                     mult = c(1, 1, 0.85, 0.85, 1)))
+```
+
+- **Knots, linear in between.** The values are knots: a daily vector has one at each day from 0, a data.frame one at each `time` (starting at 0). Between knots the multiplier is linear, so a sharp step is two knots one day apart. It is linear rather than piecewise constant because a step every day forces the ODE solver to restart at each day boundary: with a daily multiplier this is about 3 times faster.
+- **After the last knot the last value holds.** For a daily vector that is usually a mistake, such as a projection longer than the vector built for the fit, so `run_model()` warns. A data.frame is assumed to hold its last value on purpose.
+- **It combines with the targeted contact multipliers** from `beta_schedule`: transmission between $g$ and $h$ is scaled by $b(t) \min(m_g, m_h)$. Scenarios that set `beta_schedule` therefore keep the fitted seasonality.
+- **`R0` does not include `beta_t`.** It is the reproduction number at $b = 1$, so R0 values are comparable between seasons whatever the multiplier is on the start day. `R_eff(model, time)` includes $b(\text{time})$.
 
 ### Combining age and region mixing
 

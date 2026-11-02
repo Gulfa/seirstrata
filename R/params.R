@@ -221,3 +221,57 @@ stratum_index <- function(x, name, strata) {
   }
   as.integer(k)
 }
+
+# Global transmission multiplier ------------------------------------------------
+
+# beta_t as a numeric vector of daily values (knots at days 0, 1, ...) or a
+# data.frame with columns time and mult (knots at `time`, starting at 0). The
+# model interpolates linearly between knots; a final knot far in the future
+# makes the last value hold. Returns list(time, value, end), where end is the
+# last day of a daily vector (NA for a data.frame, whose last value is meant
+# to hold).
+build_beta_t <- function(beta_t) {
+  if (is.null(beta_t)) {
+    time <- 0
+    value <- 1
+    end <- NA_real_
+  } else if (is.data.frame(beta_t)) {
+    if (!all(c("time", "mult") %in% names(beta_t))) {
+      stop("'beta_t' as a data.frame must have columns 'time' and 'mult'")
+    }
+    extra <- setdiff(names(beta_t), c("time", "mult"))
+    if (length(extra) > 0) {
+      stop(sprintf("Unknown column(s) in 'beta_t': %s",
+                   paste(extra, collapse = ", ")))
+    }
+    time <- beta_t$time
+    value <- beta_t$mult
+    if (!is.numeric(time) || anyNA(time) ||
+        is.unsorted(time, strictly = TRUE)) {
+      stop("'beta_t$time' must be strictly increasing")
+    }
+    if (time[1] != 0) {
+      stop("'beta_t$time' must start at 0")
+    }
+    end <- NA_real_
+  } else {
+    if (!is.numeric(beta_t) || length(beta_t) == 0) {
+      stop("'beta_t' must be a numeric vector of daily values or a data.frame")
+    }
+    value <- as.vector(beta_t)
+    time <- seq_along(value) - 1
+    end <- max(time)
+  }
+  if (!is.numeric(value) || anyNA(value) || any(value < 0)) {
+    stop("'beta_t' values must be non-negative numbers")
+  }
+  hold <- max(time) + 1e6
+  list(time = as.numeric(c(time, hold)),
+       value = as.numeric(c(value, value[length(value)])), end = end)
+}
+
+# beta_t at the given times, as the model interpolates it
+beta_t_at <- function(model, time) {
+  p <- model$pars
+  stats::approx(p$beta_t_time, p$beta_t_value, xout = time, rule = 2)$y
+}

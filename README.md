@@ -18,7 +18,7 @@ or fitting strategy:
 - the transmission model, stratified by age, region and immunity stratum (a
   ladder of protection levels in S, waning down the ladder, and one fully
   protected R per group that wanes back into it);
-- a global daily transmission multiplier (planned), so seasonality and
+- a global transmission multiplier over time (`beta_t`), so seasonality and
   holidays can be built outside the package;
 - the observation model (the likelihood used for fitting), and an exported
   likelihood constructor (planned);
@@ -29,8 +29,9 @@ functions, and country data live in the packages that use it.
 
 ## Status
 
-Work in progress: the immunity strata, waning and R are in place; the daily
-transmission multiplier and the exported likelihood constructor are next.
+Work in progress: the immunity strata, waning, R and the transmission
+multiplier `beta_t` are in place; R_eff checks, the weekly observation model
+and the exported likelihood constructor are next.
 
 ## Development
 

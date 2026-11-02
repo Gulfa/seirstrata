@@ -96,14 +96,15 @@ beta_t_value <- parameter()
 dim(beta_t_time, beta_t_value) <- n_beta_t
 beta_t <- interpolate(beta_t_time, beta_t_value, "linear")
 
-# Vaccination over time: doses per day given to each group, piecewise constant
-# (built in R from vacc_schedule).
+# Vaccination over time: doses per day given to each group, linear between
+# knots (built in R from vacc_schedule: each change of the schedule is a
+# one-day ramp, so totals are exact and the solver is not slowed by steps).
 n_vacc_time      <- parameter(type = "integer", constant = TRUE)
 vacc_time        <- parameter()
 vacc_doses_value <- parameter()
 dim(vacc_time)        <- n_vacc_time
 dim(vacc_doses_value) <- c(n_group, n_vacc_time)
-vacc_doses <- interpolate(vacc_time, vacc_doses_value, "constant")
+vacc_doses <- interpolate(vacc_time, vacc_doses_value, "linear")
 dim(vacc_doses) <- n_group
 
 ## ---- Force of infection ---------------------------------------------------

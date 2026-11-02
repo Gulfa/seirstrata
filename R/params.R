@@ -102,10 +102,43 @@ build_beta_schedule <- function(schedule, dims) {
 # population. Before any row applies, no doses are given.
 build_vacc_schedule <- function(schedule, dims, N) {
   N <- as.vector(N)
-  build_group_schedule(schedule, dims, "doses", "vacc_schedule", default = 0,
-                       row_value = function(value, match) {
-                         value * N[match] / sum(N[match])
-                       })
+  steps <- build_group_schedule(schedule, dims, "doses", "vacc_schedule",
+                                default = 0, row_value = function(value, match) {
+                                  value * N[match] / sum(N[match])
+                                })
+  ret <- ramp_steps(steps$time, steps$value)
+  ret$steps <- steps
+  ret
+}
+
+# Turn a piecewise-constant schedule (value[, k] from time[k] onwards) into
+# knots for linear interpolation: each change becomes a linear ramp over one
+# day centred on its time (narrower if changes are closer than a day). The
+# area under a symmetric ramp equals that under the step, so totals (e.g.
+# doses) are exact, while the input stays continuous: steps make the ODE
+# solver stop at every change and slow it down several times. A final knot
+# far in the future holds the last value.
+ramp_steps <- function(time, value, width = 1) {
+  n <- length(time)
+  value <- as.matrix(value)
+  if (n == 1) {
+    return(list(time = c(0, 1e6), value = cbind(value, value)))
+  }
+  gaps <- diff(time)
+  # half-width at each change: at most width / 2 and half the gaps around it
+  # (change k is at time[k + 1]: gaps[k] is the gap before it, gaps[k + 1]
+  # the gap after it)
+  half <- pmin(width / 2, gaps / 2, c(gaps[-1], Inf) / 2)
+  t_knot <- c(time[1], as.vector(rbind(time[-1] - half, time[-1] + half)),
+              time[n] + 1e6)
+  idx <- c(1, as.vector(rbind(seq_len(n - 1), seq_len(n - 1) + 1)), n)
+  # a change at time 0 cannot ramp from before the start
+  keep <- t_knot >= time[1]
+  t_knot <- t_knot[keep]
+  idx <- idx[keep]
+  # drop knots at the same time (zero-width ramps), keeping the later one
+  dup <- c(diff(t_knot) == 0, FALSE)
+  list(time = t_knot[!dup], value = value[, idx[!dup], drop = FALSE])
 }
 
 # The common part of the schedules: a data.frame with columns `time` and

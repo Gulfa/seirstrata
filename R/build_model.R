@@ -83,7 +83,9 @@
 #'   `beta_schedule`: from `time` onwards the matching groups receive `doses`
 #'   per day between them, shared in proportion to their population, until a
 #'   later row matching them overrides it (`doses = 0` ends a campaign). When a
-#'   group's eligible people run out, its vaccination stops.
+#'   group's eligible people run out, its vaccination stops. Each change of
+#'   the dose rate is spread over one day centred on its time (a linear
+#'   ramp), which keeps the total doses exact and the ODE solver fast.
 #' @param I0,E0 Initial number of infectious / exposed people (placed in
 #'   stratum 1).
 #' @param mixing_schedule Optional changes of the mixing matrices over time: a
@@ -323,6 +325,7 @@ build_model <- function(N,
          C_age = C_age,
          M_region = M_region,
          mixing_time = mixing$time,
+         vacc_steps = vacc$steps,
          beta_t_end = bt$end,
          epi = list(susceptibility = susceptibility,
                     transmissibility = transmissibility,
@@ -401,12 +404,13 @@ print.seirstrata_model <- function(x, ...) {
                 paste(x$pars$beta_time[-1], collapse = ", ")))
   }
   if (any(x$pars$vacc_doses_value > 0)) {
-    doses <- colSums(x$pars$vacc_doses_value)
+    steps <- x$vacc_steps
+    doses <- colSums(steps$value)
     cat(sprintf("  Vaccination (to stratum '%s'): %s\n", x$strata$vacc_stratum,
                 paste(sprintf("%s doses/day from day %g",
                               format(round(doses), big.mark = ",",
                                      scientific = FALSE, trim = TRUE),
-                              x$pars$vacc_time), collapse = ", ")))
+                              steps$time), collapse = ", ")))
   }
   cat("  Parameters by age (averaged over regions, population-weighted):\n")
   w <- x$N / rowSums(x$N)

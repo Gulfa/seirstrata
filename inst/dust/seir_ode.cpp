@@ -126,7 +126,7 @@ public:
     dust2::interpolate::InterpolateConstantArray<real_type, 2> interpolate_contact;
     dust2::interpolate::InterpolateConstantArray<real_type, 1> interpolate_beta_mult;
     dust2::interpolate::InterpolateLinear<real_type> interpolate_beta_t;
-    dust2::interpolate::InterpolateConstantArray<real_type, 1> interpolate_vacc_doses;
+    dust2::interpolate::InterpolateLinearArray<real_type, 1> interpolate_vacc_doses;
   };
   struct internal_state {
     std::vector<real_type> N;
@@ -264,7 +264,7 @@ public:
     const auto interpolate_contact = dust2::interpolate::InterpolateConstantArray<real_type, 2>(contact_time, contact_value, dim.contact, "contact_time", "contact_value");
     const auto interpolate_beta_mult = dust2::interpolate::InterpolateConstantArray<real_type, 1>(beta_time, beta_mult_value, dim.beta_mult, "beta_time", "beta_mult_value");
     const auto interpolate_beta_t = dust2::interpolate::InterpolateLinear(beta_t_time, beta_t_value, "beta_t_time", "beta_t_value");
-    const auto interpolate_vacc_doses = dust2::interpolate::InterpolateConstantArray<real_type, 1>(vacc_time, vacc_doses_value, dim.vacc_doses, "vacc_time", "vacc_doses_value");
+    const auto interpolate_vacc_doses = dust2::interpolate::InterpolateLinearArray<real_type, 1>(vacc_time, vacc_doses_value, dim.vacc_doses, "vacc_time", "vacc_doses_value");
     shared_state::odin_internals_type odin;
     odin.packing.state = dust2::packing{
       {"S", std::vector<size_t>(dim.S.dim.begin(), dim.S.dim.end())},
@@ -359,7 +359,7 @@ public:
     shared.interpolate_contact = dust2::interpolate::InterpolateConstantArray<real_type, 2>(shared.contact_time, shared.contact_value, shared.dim.contact, "contact_time", "contact_value");
     shared.interpolate_beta_mult = dust2::interpolate::InterpolateConstantArray<real_type, 1>(shared.beta_time, shared.beta_mult_value, shared.dim.beta_mult, "beta_time", "beta_mult_value");
     shared.interpolate_beta_t = dust2::interpolate::InterpolateLinear(shared.beta_t_time, shared.beta_t_value, "beta_t_time", "beta_t_value");
-    shared.interpolate_vacc_doses = dust2::interpolate::InterpolateConstantArray<real_type, 1>(shared.vacc_time, shared.vacc_doses_value, shared.dim.vacc_doses, "vacc_time", "vacc_doses_value");
+    shared.interpolate_vacc_doses = dust2::interpolate::InterpolateLinearArray<real_type, 1>(shared.vacc_time, shared.vacc_doses_value, shared.dim.vacc_doses, "vacc_time", "vacc_doses_value");
   }
   static void update_internal(const shared_state& shared, internal_state& internal) {
   }

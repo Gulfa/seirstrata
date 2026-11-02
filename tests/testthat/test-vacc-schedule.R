@@ -14,14 +14,15 @@ test_that("the scheduled doses are given, and only while the schedule runs", {
   m <- vax_model(vacc_schedule = campaign(time = 20, doses = 500))
   d <- get_output(run_model(m, t_max = 100), c("cum_doses", "inc_doses"))
   doses <- d[variable == "cum_doses"]$value
-  # (the ODE solver can step a hair across the start: allow a rounding error)
-  expect_equal(doses[d[variable == "cum_doses"]$time <= 20], rep(0, 21),
-               tolerance = 1e-3)
-  expect_equal(max(doses), 500 * 30, tolerance = 1e-6)
+  # the dose rate ramps up over [19.5, 20.5] and down over [49.5, 50.5]
+  expect_equal(doses[d[variable == "cum_doses"]$time <= 19], rep(0, 20))
+  expect_equal(doses[d[variable == "cum_doses"]$time == 20], 0.5 * 0.5 * 250,
+               tolerance = 1e-4)
+  expect_equal(max(doses), 500 * 30, tolerance = 1e-5)
   inc <- d[variable == "inc_doses"]
-  # (the solver can step a hair across the end too)
-  expect_equal(inc[time %in% 21:50]$value, rep(500, 30), tolerance = 1e-4)
-  expect_equal(sum(inc[time > 50]$value), 0)
+  expect_equal(inc[time %in% 22:49]$value, rep(500, 28), tolerance = 1e-4)
+  expect_equal(inc[time %in% c(21, 50)]$value, c(437.5, 437.5), tolerance = 1e-4)
+  expect_equal(sum(inc[time > 51]$value), 0)
 
   # doses have no stratum
   by_stratum <- get_output(run_model(m, t_max = 100), "cum_doses", by = "stratum")
@@ -34,7 +35,8 @@ test_that("the epidemic before the campaign is unchanged", {
                                 vacc_schedule = campaign(time = 40)), t_max = 100)
   a <- get_output(base, "cum_infections")
   b <- get_output(vacc, "cum_infections")
-  expect_equal(a[time <= 40]$value, b[time <= 40]$value, tolerance = 1e-6)
+  # (the campaign's ramp starts at 39.5)
+  expect_equal(a[time <= 39]$value, b[time <= 39]$value, tolerance = 1e-6)
   expect_lt(max(b$value), max(a$value))
 })
 
@@ -53,12 +55,12 @@ test_that("targeted doses go to the targeted groups, shared by population", {
   expect_equal(sum(d[age == "young"]$value), 0)
   old <- d[age == "old"]
   # old: 30000 in A, 15000 in B
-  expect_equal(old$value, 200 * 30 * c(2, 1) / 3, tolerance = 1e-6)
+  expect_equal(old$value, 200 * 30 * c(2, 1) / 3, tolerance = 1e-4)
 
   m <- vax_model(vacc_schedule = campaign(doses = 200, region = "B"))
   d <- get_output(run_model(m, t_max = 60), "cum_doses", by = "region")[time == 60]
   expect_equal(d[region == "A"]$value, 0)
-  expect_equal(d[region == "B"]$value, 200 * 30, tolerance = 1e-6)
+  expect_equal(d[region == "B"]$value, 200 * 30, tolerance = 1e-4)
 })
 
 test_that("vaccination of S stops when the strata below run out", {
@@ -100,9 +102,9 @@ test_that("a later vaccination schedule acts on a continued state", {
   b <- run_model(vacc, t_max = 150, state = state, t_start = 30)
   ia <- get_output(a, "cum_infections")
   ib <- get_output(b, "cum_infections")
-  expect_equal(ia[time <= 40]$value, ib[time <= 40]$value, tolerance = 1e-6)
+  expect_equal(ia[time <= 39]$value, ib[time <= 39]$value, tolerance = 1e-6)
   expect_lt(max(ib$value), max(ia$value))
-  expect_equal(max(get_output(b, "cum_doses")$value), 30000, tolerance = 1e-6)
+  expect_equal(max(get_output(b, "cum_doses")$value), 30000, tolerance = 1e-5)
 })
 
 test_that("vacc_schedule is validated", {
@@ -121,4 +123,24 @@ test_that("vacc_schedule is validated", {
 test_that("print shows the vaccination schedule", {
   m <- vax_model(vacc_schedule = campaign(time = 20, doses = 1500))
   expect_output(print(m), "1,500 doses/day from day 20, 0 doses/day from day 50")
+})
+
+test_that("ramp_steps keeps totals and handles close and zero-time changes", {
+  # steps 0 -> 10 at day 5 -> 0 at day 8
+  r <- ramp_steps(c(0, 5, 8), matrix(c(0, 10, 0), 1))
+  expect_equal(r$time, c(0, 4.5, 5.5, 7.5, 8.5, 8 + 1e6))
+  expect_equal(as.vector(r$value), c(0, 0, 10, 10, 0, 0))
+  area <- function(r, to) {
+    t <- c(r$time[r$time < to], to)
+    v <- stats::approx(r$time, r$value[1, ], t)$y
+    sum(diff(t) * (head(v, -1) + tail(v, -1)) / 2)
+  }
+  expect_equal(area(r, 20), 10 * 3)
+  # changes 0.4 days apart: ramps shrink to half the gap
+  r2 <- ramp_steps(c(0, 5, 5.4), matrix(c(0, 10, 0), 1))
+  expect_true(all(diff(r2$time) > 0))
+  expect_equal(area(r2, 20), 10 * 0.4)
+  # a single value holds
+  r1 <- ramp_steps(0, matrix(3, 1))
+  expect_equal(as.vector(r1$value), c(3, 3))
 })

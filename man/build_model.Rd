@@ -119,7 +119,9 @@ and/or \code{region} to target groups (\code{NA} = all). Rows work as in
 \code{beta_schedule}: from \code{time} onwards the matching groups receive \code{doses}
 per day between them, shared in proportion to their population, until a
 later row matching them overrides it (\code{doses = 0} ends a campaign). When a
-group's eligible people run out, its vaccination stops.}
+group's eligible people run out, its vaccination stops. Each change of
+the dose rate is spread over one day centred on its time (a linear
+ramp), which keeps the total doses exact and the ODE solver fast.}
 
 \item{beta_t}{Optional global transmission multiplier over time, for
 seasonality, holidays and the like, typically built outside the package.

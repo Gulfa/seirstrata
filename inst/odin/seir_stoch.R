@@ -75,7 +75,7 @@ vacc_time        <- parameter()
 vacc_doses_value <- parameter()
 dim(vacc_time)        <- n_vacc_time
 dim(vacc_doses_value) <- c(n_group, n_vacc_time)
-vacc_doses <- interpolate(vacc_time, vacc_doses_value, "constant")
+vacc_doses <- interpolate(vacc_time, vacc_doses_value, "linear")
 dim(vacc_doses) <- n_group
 
 ## ---- Force of infection ---------------------------------------------------
